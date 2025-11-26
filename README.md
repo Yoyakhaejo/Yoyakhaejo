@@ -1,17 +1,43 @@
-# 요약해조 – AutoLectureNote-AI
+# Streamlit + OpenAI Summarizer & Practice Generator
 
-강의자료(PPT, PDF, 영상, 유튜브 링크)를 업로드하면  
-AI가 자동으로 **강의노트 · 요약 · 연습문제**를 생성해주는 학습 보조 플랫폼입니다.
+간단한 Streamlit 앱으로, 사용자가 업로드한 PDF/PPTX/MP4 혹은 웹페이지 링크에서 텍스트를 추출한 뒤 OpenAI API를 사용해 요약과 연습문제를 생성합니다.
 
-## 🚀 주요 기능
-- PPT/PDF → 핵심 개념 정리 강의노트 생성
-- 유튜브 강의 링크 → 자동 요약 + 노트 생성
-- 연습문제 자동 생성(객관식/주관식)
-- 논문 PDF → 구조적 요약
-- 회화/설명 코치 기능
+## 사용법 (로컬)
 
-## 🧩 기술 스택
-- Streamlit
-- OpenAI API (GPT-4o-mini 등)
-- Python
-- GitHub + Streamlit Cloud 배포
+1. 레포지토리 클론
+
+```bash
+git clone <이 리포지토리 URL>
+cd streamlit-openai-summarizer-practice-repo
+```
+
+2. 의존성 설치
+
+```bash
+python -m venv venv
+source venv/bin/activate   # mac/linux
+venv\Scripts\activate    # windows
+pip install -r requirements.txt
+```
+
+3. ffmpeg 설치 (moviepy가 필요로 함)
+
+mac: `brew install ffmpeg`
+윈도우/리눅스: 배포 방식에 맞게 설치
+
+4. 앱 실행
+
+```bash
+streamlit run app.py
+```
+
+5. OpenAI API 키
+
+앱 사이드바에서 `OpenAI API Key` 입력란에 키를 입력하거나, 환경변수 `OPENAI_API_KEY`로 설정하세요.
+
+## 배포
+- Streamlit Cloud 또는 다른 PaaS에 배포할 수 있습니다.
+
+## 보안 메모
+- API 키를 서버에 저장하지 마세요.
+- 업로드 파일 삭제/검증을 추가하세요.
