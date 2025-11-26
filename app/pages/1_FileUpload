@@ -1,0 +1,4 @@
+import streamlit as st
+
+st.title("1. 파일 업로드")
+st.write("여기에 PPT/PDF/영상/링크 업로드 기능이 들어갈 예정입니다.")
