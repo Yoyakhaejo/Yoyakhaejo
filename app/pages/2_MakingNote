@@ -41,7 +41,7 @@ def generate_lecture_notes_from_vector_store(client: OpenAI,
     )
 
     response = client.responses.create(
-        model="gpt-5-mini",
+        model="gpt-5-mini",  # 1번에서 쓰는 모델 이름과 동일하게 맞춰줘
         input=[
             {"role": "developer", "content": system_prompt},
             {
