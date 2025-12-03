@@ -120,9 +120,10 @@ def generate_response(client, user_message, history, uploaded_content=None, cont
 
 
 # Layout: chat area (scrollable) + fixed-ish input at bottom
-chat_area = st.container()
-with chat_area:
-	# height set so that input below appears fixed visually; messages scroll inside
+# Use a placeholder so we can re-render the chat immediately when messages change
+chat_placeholder = st.empty()
+
+def render_chat():
 	chat_html = []
 	for msg in st.session_state["chat_history"]:
 		role = msg.get("role")
@@ -146,7 +147,10 @@ with chat_area:
 	chat_box += "\n".join(chat_html)
 	chat_box += "</div>"
 
-	st.markdown(chat_box, unsafe_allow_html=True)
+	chat_placeholder.markdown(chat_box, unsafe_allow_html=True)
+
+# initial render
+render_chat()
 
 
 # Input area (avoid modifying widget-backed session_state keys after creation)
@@ -165,6 +169,9 @@ def handle_send(text: str):
 	# append user message
 	st.session_state["chat_history"].append({"role": "user", "content": text})
 
+	# Immediately re-render chat so user's message appears before AI generation
+	render_chat()
+
 	# generate assistant response
 	try:
 		with st.spinner("AI가 답변을 생성하는 중입니다..."):
@@ -173,7 +180,9 @@ def handle_send(text: str):
 		reply = "죄송합니다. 응답 생성 중 오류가 발생했습니다. 나중에 다시 시도해 주세요."
 		st.error(f"오류: {e}")
 
+	# append assistant reply and re-render
 	st.session_state["chat_history"].append({"role": "assistant", "content": reply})
+	render_chat()
 
 
 if send:
