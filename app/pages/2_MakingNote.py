@@ -4,9 +4,8 @@ st.title("2. 강의노트 만들기")
 st.write("업로드한 자료를 요약해서 강의노트를 생성하는 페이지입니다.")
 
 # -------------------------------------------------
-# 0. httpx Client 패치 (proxies 인자 무시용)
-#    openai가 httpx.Client(proxies=...)를 호출해도
-#    새 버전 httpx에서 에러가 나지 않도록 막아준다.
+# 0. httpx.Client 패치 (proxies 인자 무시용)
+#    이전에 생기던 "unexpected keyword argument 'proxies'" 방지
 # -------------------------------------------------
 try:
     import httpx as _httpx
@@ -15,26 +14,34 @@ try:
 
     class _PatchedClient(_OriginalClient):
         def __init__(self, *args, **kwargs):
-            # openai 라이브러리가 넘기는 proxies 인자를 무시
+            # openai 내부에서 넘기는 proxies 인자를 무시
             kwargs.pop("proxies", None)
             super().__init__(*args, **kwargs)
 
-    # openai가 사용하는 httpx.Client를 패치된 버전으로 교체
     _httpx.Client = _PatchedClient
 
-    # 이제 패치된 httpx.Client를 사용하는 OpenAI 임포트
-    from openai import OpenAI
+except Exception:
+    # httpx가 없거나, 다른 이유로 실패해도 앱은 계속 동작하게 둔다.
+    pass
 
+# -------------------------------------------------
+# 1. OpenAI 임포트
+# -------------------------------------------------
+try:
+    from openai import OpenAI
 except ImportError:
     st.error(
-        "⚠️ openai 또는 httpx 패키지가 설치되어 있지 않습니다.\n\n"
-        "requirements.txt 에 다음 항목이 있는지 확인하세요.\n\n"
+        "⚠️ openai 패키지가 설치되어 있지 않습니다.\n\n"
+        "requirements.txt 에 아래 항목이 있는지 확인하세요.\n\n"
+        "    streamlit\n"
         "    openai\n"
         "    httpx\n"
     )
     st.stop()
 
-# --- 1. 1번 페이지에서 저장해 둔 Session State 읽기 ---
+# -------------------------------------------------
+# 2. 1번 페이지에서 저장한 Session State 읽기
+# -------------------------------------------------
 api_key = st.session_state.get("user_api_key", "")
 uploaded_content = st.session_state.get("uploaded_content", None)
 content_type = st.session_state.get("content_type", None)
@@ -49,8 +56,9 @@ if not api_key or uploaded_content is None or content_type is None:
     )
     st.stop()
 
-
-# --- 2. 업로드 타입에 따라 user 메시지 생성 ---
+# -------------------------------------------------
+# 3. 업로드 타입에 따라 user 메시지 생성
+# -------------------------------------------------
 def build_user_input(uploaded_content, content_type: str) -> str:
     """
     1번 페이지에서 저장한 uploaded_content와 content_type을 받아
@@ -88,12 +96,14 @@ def build_user_input(uploaded_content, content_type: str) -> str:
         "대학생 대상의 일반적인 강의 구조(개요-핵심 개념-예시/응용-체크리스트)에 맞게 작성해줘."
     )
 
-
+# -------------------------------------------------
+# 4. OpenAI Chat Completions API로 강의노트 생성
+#    (responses.create 대신 chat.completions.create 사용)
+# -------------------------------------------------
 def generate_lecture_notes(api_key: str, uploaded_content, content_type: str) -> str:
     """
-    OpenAI Responses API를 이용해서 강의노트를 생성한다.
+    OpenAI Chat Completions API를 이용해서 강의노트를 생성한다.
     """
-    # 패치된 httpx.Client를 사용하는 OpenAI 클라이언트
     client = OpenAI(api_key=api_key)
 
     system_prompt = (
@@ -117,19 +127,21 @@ def generate_lecture_notes(api_key: str, uploaded_content, content_type: str) ->
 
     user_input = build_user_input(uploaded_content, content_type)
 
-    response = client.responses.create(
-        model="gpt-4o-mini",
-        input=[
-            {"role": "developer", "content": system_prompt},
+    completion = client.chat.completions.create(
+        model="gpt-4o-mini",  # 모델은 필요하면 gpt-4o 등으로 변경 가능
+        messages=[
+            {"role": "system", "content": system_prompt},
             {"role": "user", "content": user_input},
         ],
         temperature=0.3,
     )
 
-    return response.output_text
+    # chat.completions의 기본 출력 형식
+    return completion.choices[0].message.content
 
-
-# --- 3. UI 안내 + 버튼 ---
+# -------------------------------------------------
+# 5. UI 안내 + 버튼
+# -------------------------------------------------
 if content_type != "text":
     st.warning(
         "현재 버전에서는 '📝 텍스트 직접 입력' 탭으로 붙여넣은 경우에 "
