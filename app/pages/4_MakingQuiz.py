@@ -1,7 +1,6 @@
 # app/pages/4_MakingQuiz.py
 import streamlit as st
 from openai import OpenAI
-import tempfile
 import traceback
 
 # 페이지 설정
@@ -28,7 +27,6 @@ if st.session_state["uploaded_content"] is None:
 content_type = st.session_state["content_type"]
 st.info(f"업로드된 자료 유형: **{content_type}**")
 
-
 # --- 업로드 자료 텍스트 추출 (비ASCII 파일 경로 제거 버전) ---
 def extract_text_from_uploaded():
     data = st.session_state["uploaded_content"]
@@ -45,7 +43,7 @@ def extract_text_from_uploaded():
             "(이 영상의 핵심 내용을 기반으로 퀴즈를 생성해줘.)"
         )
 
-    # PDF/PPT/PPTX는 파일 경로 넣지 않음 -> 인코딩 오류 방지
+    # PDF/PPT/PPTX는 파일 경로 제거 → ASCII 오류 방지
     if ctype in ("pdf", "ppt", "pptx"):
         return (
             "업로드된 문서는 PDF/PPT 형식입니다. "
@@ -55,9 +53,7 @@ def extract_text_from_uploaded():
 
     return "알 수 없는 자료 형식입니다."
 
-
 material_text = extract_text_from_uploaded()
-
 
 # --- 퀴즈 옵션 ---
 st.subheader("🎯 생성할 퀴즈 설정")
@@ -68,7 +64,6 @@ difficulty = st.select_slider("난이도", ["쉬움", "보통", "어려움"], va
 
 st.markdown("---")
 st.write("버튼을 누르면 OpenAI Chat Completions API가 호출됩니다.")
-
 
 # === 퀴즈 생성 ===
 if st.button("🚀 퀴즈 생성하기"):
@@ -98,7 +93,8 @@ if st.button("🚀 퀴즈 생성하기"):
                 max_tokens=1500,
             )
 
-            quiz_text = response.choices[0].message["content"]
+            # ✔ ChatCompletionMessage 객체 접근 방식 수정
+            quiz_text = response.choices[0].message.content
 
             st.success("퀴즈 생성 완료!")
             st.markdown("### 📘 생성된 퀴즈")
@@ -111,7 +107,6 @@ if st.button("🚀 퀴즈 생성하기"):
         st.exception(exc)
         print("=== OpenAI 호출 오류 ===")
         traceback.print_exc()
-
 
 # --- 다운로드 ---
 if st.session_state.get("generated_quiz"):
