@@ -20,11 +20,12 @@ def init_state():
 
 init_state()
 
-
+# 1_FileUpload 페이지에서 저장된 API Key와 파일을 받아 업데이트
 user_api_key = st.session_state.get("user_api_key")
 uploaded_content = st.session_state.get("uploaded_content")
+content_type = st.session_state.get("content_type")
 
-if user_api_key is None:
+if user_api_key is None or user_api_key == "":
 	st.error("❗ 먼저 1번 페이지에서 OpenAI API Key를 입력해 주세요.")
 	st.stop()
 
