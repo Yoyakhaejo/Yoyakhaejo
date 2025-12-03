@@ -28,6 +28,7 @@ if st.session_state["uploaded_content"] is None:
 content_type = st.session_state["content_type"]
 st.info(f"업로드된 자료 유형: **{content_type}**")
 
+
 # -------------------------------
 # PDF 텍스트 추출 함수
 # -------------------------------
@@ -37,6 +38,7 @@ def extract_text_from_pdf(file_bytes):
         for page in pdf:
             text += page.get_text()
     return text
+
 
 # -------------------------------
 # 업로드 자료 텍스트 추출
@@ -64,7 +66,9 @@ def extract_text_from_uploaded():
             return "파일 처리 오류 발생."
     return "알 수 없는 자료 형식입니다."
 
+
 material_text = extract_text_from_uploaded()
+
 
 # -------------------------------
 # 퀴즈 옵션 UI
@@ -76,6 +80,7 @@ quiz_type = st.selectbox(
 difficulty = st.select_slider("난이도", ["쉬움", "보통", "어려움"], value="보통")
 st.markdown("---")
 st.write("버튼을 누르면 OpenAI Chat Completions API가 호출됩니다.")
+
 
 # ==========================================================
 # 퀴즈 생성
@@ -113,7 +118,7 @@ if st.button("🚀 퀴즈 생성하기"):
             st.markdown("### 📘 생성된 퀴즈")
 
             # -------------------------------
-            # 문제/정답 분리 + 정답 보기 버튼
+            # 문제/정답 분리 + 정답 보기 버튼 (session_state 유지)
             # -------------------------------
             lines = quiz_text.split("\n")
             buffer = []
@@ -123,15 +128,24 @@ if st.button("🚀 퀴즈 생성하기"):
                 if "//정답:" in line:
                     question = "\n".join(buffer).strip()
                     answer = line.replace("//정답:", "").strip()
+                    key_show = f"show_answer_{question_count}"
 
-                    # 각 문제마다 고유 키를 생성해서 expander 버튼으로 사용
-                    button_key = f"show_answer_{question_count}"
-                    col1, col2 = st.columns([6, 1])
-                    with col1:
-                        st.write(question)
-                    with col2:
-                        if st.button("정답 보기", key=button_key):
-                            st.success(f"정답: {answer}")
+                    # session_state 초기화
+                    if key_show not in st.session_state:
+                        st.session_state[key_show] = False
+
+                    # 문제 출력
+                    st.write(f"**문제 {question_count}:**")
+                    st.write(question)
+
+                    # 정답 보기 버튼
+                    if st.button("정답 보기", key=f"btn_{key_show}"):
+                        st.session_state[key_show] = not st.session_state[key_show]
+
+                    # 정답 표시
+                    if st.session_state[key_show]:
+                        st.success(f"정답: {answer}")
+
                     buffer = []
                     question_count += 1
                 else:
@@ -141,6 +155,7 @@ if st.button("🚀 퀴즈 생성하기"):
         st.error("퀴즈 생성 중 오류가 발생했습니다.")
         st.exception(exc)
         traceback.print_exc()
+
 
 # ==========================================================
 # 다운로드 버튼
