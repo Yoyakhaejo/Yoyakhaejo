@@ -7,12 +7,12 @@ from openai import OpenAI
 
 
 def init_state():
-	if "api_key" not in st.session_state:
-		st.session_state["api_key"] = None
-	if "lecture_vector_store_id" not in st.session_state:
-		st.session_state["lecture_vector_store_id"] = None
-	if "lecture_notes" not in st.session_state:
-		st.session_state["lecture_notes"] = None
+	if "user_api_key" not in st.session_state:
+		st.session_state["user_api_key"] = None
+	if "uploaded_content" not in st.session_state:
+		st.session_state["uploaded_content"] = None
+	if "content_type" not in st.session_state:
+		st.session_state["content_type"] = None
 	if "chat_history" not in st.session_state:
 		# list of dicts: {role: 'user'|'assistant', 'content': '...'}
 		st.session_state["chat_history"] = []
@@ -21,17 +21,17 @@ def init_state():
 init_state()
 
 
-api_key = st.session_state.get("api_key")
-vector_store_id = st.session_state.get("lecture_vector_store_id")
+user_api_key = st.session_state.get("user_api_key")
+uploaded_content = st.session_state.get("uploaded_content")
 
-if api_key is None:
+if user_api_key is None:
 	st.error("❗ 먼저 1번 페이지에서 OpenAI API Key를 입력해 주세요.")
 	st.stop()
 
-client = OpenAI(api_key=api_key)
+client = OpenAI(api_key=user_api_key)
 
 
-def generate_response(client, user_message, history, vector_store_id=None):
+def generate_response(client, user_message, history, uploaded_content=None):
 	# Prepare system prompt explaining role and use of uploaded materials
 	system_prompt = (
 		"너는 대학생을 도와 공부 효율을 높여주는 친절한 튜터야.\n"
@@ -62,11 +62,11 @@ def generate_response(client, user_message, history, vector_store_id=None):
 		"temperature": 0.2,
 	}
 
-	if vector_store_id:
+	if uploaded_content:
 		kwargs["tools"] = [
 			{
 				"type": "file_search",
-				"vector_store_ids": [vector_store_id],
+				"vector_store_ids": [uploaded_content],
 				"max_num_results": 10,
 			}
 		]
@@ -123,7 +123,7 @@ def handle_send():
 	# generate assistant response
 	try:
 		with st.spinner("AI가 답변을 생성하는 중입니다..."):
-			reply = generate_response(client, text, st.session_state["chat_history"], vector_store_id)
+			reply = generate_response(client, text, st.session_state["chat_history"], uploaded_content)
 	except Exception as e:
 		reply = "죄송합니다. 응답 생성 중 오류가 발생했습니다. 나중에 다시 시도해 주세요."
 		st.error(f"오류: {e}")
