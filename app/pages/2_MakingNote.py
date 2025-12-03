@@ -143,7 +143,7 @@ def generate_lecture_notes(api_key: str, uploaded_content, content_type: str) ->
 # 5. UI 안내 + 버튼
 # -------------------------------------------------
 if content_type != "text":
-    st.warning(
+    st.info(
         "이 페이지에서는 1번에서 업로드한 강의자료를 바탕으로,\n"
         "① 강의 개요, ② 핵심 개념, ③ 예시와 응용, ④ 복습용 체크리스트를\n"
         "자동으로 정리해 ‘강의노트’ 형태로 만들어 줍니다.\n\n"
