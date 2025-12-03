@@ -42,7 +42,7 @@ def generate_response(client, user_message, history, uploaded_content=None):
 
 	# Build input messages from history (keep recent history)
 	messages = [
-		{"role": "developer", "content": system_prompt},
+		{"role": "system", "content": system_prompt},
 	]
 
 	# include last N messages to maintain context
@@ -56,24 +56,13 @@ def generate_response(client, user_message, history, uploaded_content=None):
 	# finally add this user message
 	messages.append({"role": "user", "content": user_message})
 
-	# Call OpenAI Responses API; include file_search tool if vector store exists
-	kwargs = {
-		"model": "gpt-4o-mini",
-		"input": messages,
-		"temperature": 0.2,
-	}
-
-	if uploaded_content:
-		kwargs["tools"] = [
-			{
-				"type": "file_search",
-				"vector_store_ids": [uploaded_content],
-				"max_num_results": 10,
-			}
-		]
-
-	resp = client.responses.create(**kwargs)
-	return resp.output_text
+	# Call OpenAI Chat Completions API
+	resp = client.chat.completions.create(
+		model="gpt-4o-mini",
+		messages=messages,
+		temperature=0.2,
+	)
+	return resp.choices[0].message.content
 
 
 # Layout: chat area (scrollable) + fixed-ish input at bottom
