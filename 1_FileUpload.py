@@ -85,6 +85,6 @@ with tab3:
             st.session_state['content_type'] = 'text'
             st.success("텍스트가 저장되었습니다.")
 
-# --- 5. 다음 단계로 넘어가기 안내 ---
+# --- 4. 다음 단계로 넘어가기 안내 ---
 if st.session_state['uploaded_content'] and st.session_state['user_api_key']:
     st.info("모든 준비가 완료되었습니다! 왼쪽 메뉴에서 '강의노트 생성' 또는 '퀴즈 풀기' 페이지로 이동하세요.")
