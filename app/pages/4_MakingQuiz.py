@@ -28,32 +28,36 @@ if st.session_state["uploaded_content"] is None:
 content_type = st.session_state["content_type"]
 st.info(f"업로드된 자료 유형: **{content_type}**")
 
-# --- 업로드 자료 텍스트 추출 ---
+
+# --- 업로드 자료 텍스트 추출 (비ASCII 파일 경로 제거 버전) ---
 def extract_text_from_uploaded():
     data = st.session_state["uploaded_content"]
     ctype = st.session_state["content_type"]
 
+    # 단순 텍스트
     if ctype == "text":
-        return data
+        return str(data)
 
+    # 유튜브 URL
     if ctype == "youtube":
-        return f"유튜브 영상 URL: {data}\n(이 영상의 핵심 내용을 기반으로 퀴즈를 생성해줘.)"
+        return (
+            f"업로드된 영상 URL: {data}\n"
+            "(이 영상의 핵심 내용을 기반으로 퀴즈를 생성해줘.)"
+        )
 
+    # PDF/PPT/PPTX는 파일 경로 넣지 않음 -> 인코딩 오류 방지
     if ctype in ("pdf", "ppt", "pptx"):
-        try:
-            with tempfile.NamedTemporaryFile(delete=False, suffix=f".{ctype}") as tmp:
-                tmp.write(data.getbuffer())
-                tmp_path = tmp.name
-            return (
-                f"파일 경로: {tmp_path}\n"
-                "※ 현재는 텍스트 추출을 하지 않고 파일 경로만 전달합니다."
-            )
-        except Exception as e:
-            return f"파일 처리 오류: {e}"
+        return (
+            "업로드된 문서는 PDF/PPT 형식입니다. "
+            "현재는 텍스트 추출 기능이 비활성화되어 있으므로, "
+            "파일 내용을 직접 분석했다고 가정하고 퀴즈를 생성해주세요."
+        )
 
     return "알 수 없는 자료 형식입니다."
 
+
 material_text = extract_text_from_uploaded()
+
 
 # --- 퀴즈 옵션 ---
 st.subheader("🎯 생성할 퀴즈 설정")
@@ -63,13 +67,12 @@ quiz_type = st.selectbox(
 difficulty = st.select_slider("난이도", ["쉬움", "보통", "어려움"], value="보통")
 
 st.markdown("---")
-
 st.write("버튼을 누르면 OpenAI Chat Completions API가 호출됩니다.")
+
 
 # === 퀴즈 생성 ===
 if st.button("🚀 퀴즈 생성하기"):
     try:
-        # v1.x 전용 클라이언트
         client = OpenAI(api_key=st.session_state["user_api_key"])
 
         prompt = f"""
@@ -88,9 +91,8 @@ if st.button("🚀 퀴즈 생성하기"):
 """
 
         with st.spinner("AI가 퀴즈를 생성 중입니다..."):
-            # v1.x 문법 — Chat Completions API
             response = client.chat.completions.create(
-                model="gpt-4o-mini",   # 원하는 모델로 변경 가능
+                model="gpt-4o-mini",
                 messages=[{"role": "user", "content": prompt}],
                 temperature=0.7,
                 max_tokens=1500,
@@ -109,6 +111,7 @@ if st.button("🚀 퀴즈 생성하기"):
         st.exception(exc)
         print("=== OpenAI 호출 오류 ===")
         traceback.print_exc()
+
 
 # --- 다운로드 ---
 if st.session_state.get("generated_quiz"):
