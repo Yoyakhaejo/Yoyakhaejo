@@ -1,4 +1,5 @@
 import streamlit as st
+st.set_option("client.showErrorDetails", True)
 import html
 
 st.title("3. 채팅하기")
@@ -95,16 +96,17 @@ with chat_area:
 	st.markdown(chat_box, unsafe_allow_html=True)
 
 
-# Input area
+# Input area (avoid modifying widget-backed session_state keys after creation)
 st.write("")
 cols = st.columns([8, 1])
 with cols[0]:
-	user_input = st.text_input("메시지를 입력하세요", key="chat_input", placeholder="질문을 입력하고 Enter 또는 전송 버튼을 누르세요")
+	# use the return value of text_input (no direct session_state writes to the widget key)
+	user_input = st.text_input("메시지를 입력하세요", placeholder="질문을 입력하고 Enter 또는 전송 버튼을 누르세요")
 with cols[1]:
 	send = st.button("전송")
 
-def handle_send():
-	text = st.session_state.get("chat_input", "").strip()
+def handle_send(text: str):
+	text = (text or "").strip()
 	if not text:
 		return
 	# append user message
@@ -119,14 +121,9 @@ def handle_send():
 		st.error(f"오류: {e}")
 
 	st.session_state["chat_history"].append({"role": "assistant", "content": reply})
-	# clear input
-	st.session_state["chat_input"] = ""
 
 
 if send:
-	handle_send()
-
-# Also handle Enter key (Streamlit triggers form submission differently); offer a small button above
-if st.session_state.get("chat_history"):
-	# simple instruction
-	st.info("위 스크롤 영역을 사용해 대화를 확인하세요. 입력창은 항상 하단에 있습니다.")
+	handle_send(user_input)
+	if st.session_state.get("chat_history"):
+		st.info("위 스크롤 영역을 사용해 대화를 확인하세요. 입력창은 항상 하단에 있습니다.")
