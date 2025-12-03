@@ -1,63 +1,40 @@
-from fastapi import FastAPI
-from pydantic import BaseModel
-from fastapi.middleware.cors import CORSMiddleware
+import streamlit as st
 from openai import OpenAI
 
-app = FastAPI()
+st.title("연습 문제 생성하기")
 
-# CORS 허용 (React와 연결)
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+# 1페이지에서 저장된 content와 apiKey 사용
+content = st.session_state.get("content")
+api_key = st.session_state.get("apiKey")
 
-# 입력 데이터 모델
-class QuizRequest(BaseModel):
-    apiKey: str
-    content: str
+if not content:
+    st.warning("먼저 자료를 업로드해주세요.")
+    st.stop()
 
-# 연습문제 생성 API
-@app.post("/generate-quiz")
-async def generate_quiz(payload: QuizRequest):
-    client = OpenAI(api_key=payload.apiKey)
+if not api_key:
+    st.warning("API Key가 필요합니다.")
+    st.stop()
 
-    prompt = f"""
-다음 학습 자료를 기반으로 중요한 내용을 평가하는 연습문제를 만들어줘.
+client = OpenAI(api_key=api_key)
 
-[자료 내용]
-{payload.content}
+if st.button("연습 문제 생성"):
+    with st.spinner("AI가 문제를 생성하고 있습니다..."):
+        prompt = f"""
+다음 자료로 연습문제를 만들어줘.
+
+자료:
+{content}
 
 요구사항:
-- 총 5문제
-- 객관식 3문제 + 서술형 2문제
-- 객관식은 보기 4개 포함
-- 정답을 문제 아래에 "정답:" 형식으로 명시
-- 반드시 JSON 형태로 반환:
-
-{{
-  "questions": [
-    {{
-      "type": "multiple-choice" | "short-answer",
-      "question": "",
-      "choices": [],
-      "answer": ""
-    }}
-  ]
-}}
+- 객관식 3문제
+- 서술형 2문제
+- JSON 형식으로 반환
 """
 
-    response = client.responses.create(
-        model="gpt-4.1",
-        input=prompt
-    )
+        response = client.responses.create(
+            model="gpt-4.1",
+            input=prompt
+        )
 
-    # 최종 텍스트(Raw JSON)
-    text_output = response.output_text
-
-    return {
-        "quiz": text_output
-    }
-
+        quiz = response.output_text
+        st.json(quiz)
