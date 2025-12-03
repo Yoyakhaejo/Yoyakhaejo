@@ -118,7 +118,7 @@ if st.button("🚀 퀴즈 생성하기"):
             st.markdown("### 📘 생성된 퀴즈")
 
             # -------------------------------
-            # 문제/정답 분리 + 정답 보기 버튼 (session_state 유지)
+            # 문제/정답 분리 + expander 사용
             # -------------------------------
             lines = quiz_text.split("\n")
             buffer = []
@@ -128,22 +128,10 @@ if st.button("🚀 퀴즈 생성하기"):
                 if "//정답:" in line:
                     question = "\n".join(buffer).strip()
                     answer = line.replace("//정답:", "").strip()
-                    key_show = f"show_answer_{question_count}"
 
-                    # session_state 초기화
-                    if key_show not in st.session_state:
-                        st.session_state[key_show] = False
-
-                    # 문제 출력
-                    st.write(f"**문제 {question_count}:**")
-                    st.write(question)
-
-                    # 정답 보기 버튼
-                    if st.button("정답 보기", key=f"btn_{key_show}"):
-                        st.session_state[key_show] = not st.session_state[key_show]
-
-                    # 정답 표시
-                    if st.session_state[key_show]:
+                    # st.expander 사용: 문제는 제목으로, 클릭 시 정답 표시
+                    with st.expander(f"문제 {question_count}", expanded=False):
+                        st.write(question)
                         st.success(f"정답: {answer}")
 
                     buffer = []
