@@ -71,6 +71,11 @@ if user_api_key is None or user_api_key == "":
 	st.error("❗ 먼저 1번 페이지에서 OpenAI API Key를 입력해 주세요.")
 	st.stop()
 
+# Warn if no content uploaded (but still allow chat to proceed)
+if not uploaded_content:
+	st.error("❌ 1번 페이지에서 먼저 다음 중 하나를 선택하여 업로드해 주세요:\n- 📄 파일 업로드 (PDF, PPT, 영상)\n- ▶️ 유튜브 링크\n- 📝 텍스트 직접 입력\n\n자료 업로드 후 채팅을 진행할 수 있습니다.")
+	st.stop()
+
 client = OpenAI(api_key=user_api_key)
 
 
@@ -95,8 +100,8 @@ def generate_response(client, user_message, history, uploaded_content=None, cont
 		if role in ("user", "assistant"):
 			messages.append({"role": role, "content": content})
 
-	# If there is uploaded content (file/text/youtube), include a brief description
-	if uploaded_content:
+	# If there is uploaded content and it's the first message in history, include context once
+	if uploaded_content and len(history) == 1:
 		uploaded_prompt = build_user_input(uploaded_content, content_type)
 		if uploaded_prompt:
 			# add as a user message so model can reference it
