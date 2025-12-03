@@ -32,33 +32,35 @@ def build_user_input(uploaded_content, content_type: str) -> str:
 	if not uploaded_content:
 		return ""
 
+	# (1) 텍스트 직접 입력
 	if content_type == "text":
 		return (
-			"다음 텍스트는 한 편의 강의 내용을 옮겨 적은 것이다. 이 텍스트 전체를 기반으로 답변에 참고해줘.\n\n"
+			"다음 텍스트는 한 편의 강의 내용을 옮겨 적은 것이다.\n"
+			"이 텍스트 전체를 기반으로 강의노트를 작성해줘.\n\n"
 			f"{uploaded_content}"
 		)
 
+	# (2) 유튜브 링크
 	if content_type == "youtube":
 		return (
-			"사용자가 아래 유튜브 링크의 강의를 들었다고 가정하자. 실제 영상이나 자막에 직접 접근할 수는 없지만, 일반적인 대학 강의 구성을 바탕으로 답변해줘.\n\n"
+			"사용자가 아래 유튜브 링크의 강의를 들었다고 가정하자.\n"
+			"실제 영상이나 자막에 직접 접근할 수는 없지만, 일반적인 대학 강의 구성을 바탕으로\n"
+			"해당 링크의 강의가 있다고 가정하고 강의노트를 작성해줘.\n\n"
 			f"유튜브 URL: {uploaded_content}\n\n"
-			"※ 실제 영상 내용은 알 수 없으므로, 너무 구체적인 숫자/예시는 피하고 전형적인 강의 구조에 맞춰 정리해줘."
+			"※ 실제 영상 내용은 알 수 없으므로, 너무 구체적인 숫자/예시는 피하고 "
+			"전형적인 강의 구조에 맞춰 정리해줘."
 		)
 
-	# 파일(PDF/PPT/영상 등)
-	file_name = getattr(uploaded_content, "name", str(uploaded_content))
-	ext = "알수없음"
-	try:
-		if isinstance(file_name, str) and "." in file_name:
-			ext = file_name.split(".")[-1]
-	except Exception:
-		ext = "알수없음"
-
+	# (3) 파일(PDF/PPT/영상 등)
+	file_name = getattr(uploaded_content, "name", "알 수 없는 파일명")
 	return (
-		"사용자가 대학 강의자료 파일을 업로드했다. 실제 파일 내용을 직접 읽을 수는 없으므로, 일반적인 대학 강의 슬라이드/자료라고 가정하고 답변해줘.\n\n"
+		"사용자가 대학 강의자료 파일을 업로드했다.\n"
+		"현재 앱에서는 파일의 원문 텍스트를 직접 읽어오지는 못하지만,\n"
+		"일반적인 대학 강의 슬라이드/자료라고 가정하고 강의노트를 작성해줘.\n\n"
 		f"파일 이름: {file_name}\n"
-		f"파일 타입(확장자): {ext}\n\n"
-		"※ 실제 슬라이드 내용을 모르는 상태이므로, 과도하게 구체적인 예시는 피하고, 대학생 대상의 일반적인 강의 구조에 맞춰 답변해줘."
+		f"파일 타입(확장자): {content_type}\n\n"
+		"※ 실제 슬라이드 내용을 모르는 상태이므로, 과도하게 구체적인 예시는 피하고,\n"
+		"대학생 대상의 일반적인 강의 구조(개요-핵심 개념-예시/응용-체크리스트)에 맞게 작성해줘."
 	)
 
 
