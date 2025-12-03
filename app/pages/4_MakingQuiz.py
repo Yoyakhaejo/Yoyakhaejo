@@ -118,7 +118,7 @@ if st.button("🚀 퀴즈 생성하기"):
             st.markdown("### 📘 생성된 퀴즈")
 
             # -------------------------------
-            # 문제/정답 분리 + expander 사용
+            # 문제/정답 분리 + 정답 클릭 표시(expander)
             # -------------------------------
             lines = quiz_text.split("\n")
             buffer = []
@@ -129,10 +129,13 @@ if st.button("🚀 퀴즈 생성하기"):
                     question = "\n".join(buffer).strip()
                     answer = line.replace("//정답:", "").strip()
 
-                    # st.expander 사용: 문제는 제목으로, 클릭 시 정답 표시
-                    with st.expander(f"문제 {question_count}", expanded=False):
-                        st.write(question)
-                        st.success(f"정답: {answer}")
+                    # 문제는 항상 표시
+                    st.write(f"**문제 {question_count}:**")
+                    st.write(question)
+
+                    # 정답만 expander로 숨기기
+                    with st.expander("정답 보기", expanded=False):
+                        st.success(answer)
 
                     buffer = []
                     question_count += 1
