@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 import streamlit as st
 st.set_option("client.showErrorDetails", True)
 import html
