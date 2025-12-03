@@ -95,7 +95,14 @@ def generate_response(client, user_message, history, uploaded_content=None, cont
 		{"role": "system", "content": system_prompt},
 	]
 
-	# include last N messages to maintain context
+	# Add uploaded content context on first message
+	if uploaded_content and len(history) == 1:
+		uploaded_prompt = build_user_input(uploaded_content, content_type)
+		if uploaded_prompt:
+			# Add as a user message so model can reference it
+			messages.append({"role": "user", "content": uploaded_prompt})
+
+	# Include last N messages to maintain conversation context
 	recent = history[-10:] if history else []
 	for m in recent:
 		role = m.get("role")
@@ -103,28 +110,21 @@ def generate_response(client, user_message, history, uploaded_content=None, cont
 		if role in ("user", "assistant"):
 			messages.append({"role": role, "content": content})
 
-	# If there is uploaded content and it's the first message in history, include context once
-	if uploaded_content and len(history) == 1:
-		uploaded_prompt = build_user_input(uploaded_content, content_type)
-		if uploaded_prompt:
-			# add as a user message so model can reference it
-			messages.append({"role": "user", "content": uploaded_prompt})
-
-	# finally add this user message (the actual question)
+	# Finally add current user message (the actual question)
 	messages.append({"role": "user", "content": user_message})
 
 	# Call OpenAI Chat Completions API
-	resp = client.chat.completions.create(
-		model="gpt-4o-mini",
-		messages=messages,
-		temperature=0.2,
-	)
-	# Some SDK versions return the message differently; handle common shapes
 	try:
+		resp = client.chat.completions.create(
+			model="gpt-4o-mini",
+			messages=messages,
+			temperature=0.2,
+		)
+		# Extract response content
 		return resp.choices[0].message.content
-	except Exception:
-		# fallback to attribute used by older/newer SDKs
-		return getattr(resp, "output_text", str(resp))
+	except Exception as e:
+		# Handle errors gracefully
+		raise Exception(f"OpenAI API 호출 중 오류 발생: {str(e)}")
 
 
 # Layout: chat area (scrollable) + fixed-ish input at bottom
