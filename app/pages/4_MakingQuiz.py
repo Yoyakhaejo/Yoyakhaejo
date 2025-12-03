@@ -23,9 +23,6 @@ if not st.session_state['user_api_key']:
     st.warning("⚠️ 먼저 왼쪽 설정에서 OpenAI API Key를 입력해주세요!")
     st.stop()
 
-# 클라이언트 준비
-client = OpenAI(api_key=st.session_state['user_api_key'])
-
 # --- 4. 업로드된 자료 확인 ---
 if st.session_state['uploaded_content'] is None:
     st.warning("📂 먼저 '강의 자료 업로드' 페이지에서 자료를 업로드해주세요!")
@@ -34,20 +31,17 @@ if st.session_state['uploaded_content'] is None:
 content_type = st.session_state['content_type']
 st.info(f"업로드된 자료 유형: **{content_type}**")
 
-# --- 5. 자료에서 사용할 텍스트 추출 ---
+# --- 5. 자료에서 텍스트 준비 ---
 def extract_text_from_uploaded():
     data = st.session_state['uploaded_content']
     ctype = st.session_state['content_type']
 
-    # 텍스트 직접 입력
     if ctype == 'text':
         return data
 
-    # 유튜브 링크
     if ctype == 'youtube':
-        return f"다음 유튜브 강의 내용을 요약하여 퀴즈를 만들어줘: {data}"
+        return f"다음 유튜브 강의 내용을 요약하여 퀴즈를 만들어줘:\n{data}"
 
-    # PDF/PPT 등 파일 처리
     if ctype in ['pdf', 'ppt', 'pptx']:
         with tempfile.NamedTemporaryFile(delete=False, suffix=f".{ctype}") as tmp:
             tmp.write(data.getbuffer())
@@ -78,30 +72,33 @@ difficulty = st.select_slider(
 
 # --- 7. 퀴즈 생성 ---
 if st.button("🚀 퀴즈 생성하기"):
+
+    # 👉 OpenAI 객체는 여기에서만 만들어야 함
+    client = OpenAI(api_key=st.session_state['user_api_key'])
+
+    prompt = f"""
+    아래 강의자료를 기반으로 {quiz_type}의 퀴즈를 생성해줘.
+    난이도는 {difficulty} 수준으로.
+
+    --- 강의자료 내용 ---
+    {material_text}
+    ---------------------
+
+    문제는 번호를 붙이고, 보기와 정답을 명확하게 포함해서 작성해줘.
+    """
+
     with st.spinner("AI가 퀴즈를 생성하는 중입니다..."):
-
-        prompt = f"""
-        아래 강의자료를 기반으로 {quiz_type}의 퀴즈를 생성해줘.
-        난이도는 {difficulty} 수준으로.
-
-        --- 강의자료 내용 ---
-        {material_text}
-        ---------------------
-
-        문제는 번호를 붙이고, 보기와 정답을 명확하게 포함해서 작성해줘.
-        """
-
         try:
             response = client.chat.completions.create(
                 model="gpt-4o-mini",
                 messages=[
-                    {"role": "system", "content": "넌 강의자료 기반 교육용 퀴즈 생성 전문 AI야."},
+                    {"role": "system", "content": "너는 강의자료 기반 교육용 퀴즈 생성 전문 AI이다."},
                     {"role": "user", "content": prompt}
                 ],
                 temperature=0.7
             )
 
-            quiz_output = response.choices[0].message.content
+            quiz_output = response.choices[0].message["content"]
 
             st.success("퀴즈 생성이 완료되었습니다!")
             st.markdown("### 📘 생성된 퀴즈")
