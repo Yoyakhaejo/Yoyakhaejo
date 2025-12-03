@@ -27,23 +27,20 @@ if st.session_state["uploaded_content"] is None:
 content_type = st.session_state["content_type"]
 st.info(f"업로드된 자료 유형: **{content_type}**")
 
-# --- 업로드 자료 텍스트 추출 (비ASCII 파일 경로 제거 버전) ---
+# --- 업로드 자료 텍스트 추출 ---
 def extract_text_from_uploaded():
     data = st.session_state["uploaded_content"]
     ctype = st.session_state["content_type"]
 
-    # 단순 텍스트
     if ctype == "text":
         return str(data)
 
-    # 유튜브 URL
     if ctype == "youtube":
         return (
             f"업로드된 영상 URL: {data}\n"
             "(이 영상의 핵심 내용을 기반으로 퀴즈를 생성해줘.)"
         )
 
-    # PDF/PPT/PPTX는 파일 경로 제거 → ASCII 오류 방지
     if ctype in ("pdf", "ppt", "pptx"):
         return (
             "업로드된 문서는 PDF/PPT 형식입니다. "
@@ -93,23 +90,47 @@ if st.button("🚀 퀴즈 생성하기"):
                 max_tokens=1500,
             )
 
-            # ✔ ChatCompletionMessage 객체 접근 방식 수정
             quiz_text = response.choices[0].message.content
+            st.session_state["generated_quiz"] = quiz_text
 
             st.success("퀴즈 생성 완료!")
-            st.markdown("### 📘 생성된 퀴즈")
-            st.code(quiz_text, language="text")
-
-            st.session_state["generated_quiz"] = quiz_text
 
     except Exception as exc:
         st.error("퀴즈 생성 중 오류가 발생했습니다. 콘솔을 확인하세요.")
         st.exception(exc)
-        print("=== OpenAI 호출 오류 ===")
         traceback.print_exc()
 
-# --- 다운로드 ---
+# === 문제 & 정답 표시 ===
 if st.session_state.get("generated_quiz"):
+    quiz_text = st.session_state["generated_quiz"]
+
+    st.markdown("### 📘 생성된 퀴즈")
+
+    # 문제/정답 분리
+    lines = quiz_text.split("\n")
+    qa_list = []
+    current_q = []
+    current_a = ""
+
+    for line in lines:
+        if line.strip().startswith("정답:"):
+            current_a = line.strip()
+            qa_list.append((current_q, current_a))
+            current_q = []
+        else:
+            current_q.append(line)
+
+    # 문제 렌더링
+    for idx, (question_lines, answer_line) in enumerate(qa_list, start=1):
+        with st.container():
+            st.markdown(f"#### ▶ 문제 {idx}")
+            st.code("\n".join(question_lines), language="text")
+
+            # 정답 숨기기 기능
+            with st.expander("정답 보기 🔍"):
+                st.success(answer_line)
+
+    # 다운로드 버튼
     st.download_button(
         "🔽 퀴즈 다운로드 (.txt)",
         st.session_state["generated_quiz"],
