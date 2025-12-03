@@ -3,14 +3,34 @@ import streamlit as st
 st.title("2. 강의노트 만들기")
 st.write("업로드한 자료를 요약해서 강의노트를 생성하는 페이지입니다.")
 
-# openai 패키지 임포트 (설치 안 되어 있으면 안내 메시지)
+# -------------------------------------------------
+# 0. httpx Client 패치 (proxies 인자 무시용)
+#    openai가 httpx.Client(proxies=...)를 호출해도
+#    새 버전 httpx에서 에러가 나지 않도록 막아준다.
+# -------------------------------------------------
 try:
+    import httpx as _httpx
+
+    _OriginalClient = _httpx.Client
+
+    class _PatchedClient(_OriginalClient):
+        def __init__(self, *args, **kwargs):
+            # openai 라이브러리가 넘기는 proxies 인자를 무시
+            kwargs.pop("proxies", None)
+            super().__init__(*args, **kwargs)
+
+    # openai가 사용하는 httpx.Client를 패치된 버전으로 교체
+    _httpx.Client = _PatchedClient
+
+    # 이제 패치된 httpx.Client를 사용하는 OpenAI 임포트
     from openai import OpenAI
+
 except ImportError:
     st.error(
-        "⚠️ openai 패키지가 설치되어 있지 않습니다.\n\n"
-        "터미널이나 requirements.txt 에서 아래를 설치해 주세요.\n\n"
-        "    pip install openai\n"
+        "⚠️ openai 또는 httpx 패키지가 설치되어 있지 않습니다.\n\n"
+        "requirements.txt 에 다음 항목이 있는지 확인하세요.\n\n"
+        "    openai\n"
+        "    httpx\n"
     )
     st.stop()
 
@@ -72,18 +92,9 @@ def build_user_input(uploaded_content, content_type: str) -> str:
 def generate_lecture_notes(api_key: str, uploaded_content, content_type: str) -> str:
     """
     OpenAI Responses API를 이용해서 강의노트를 생성한다.
-    여기서 client 생성까지 한 번에 처리하고, 문제가 생기면 에러 메시지를 반환.
     """
-    # 1) 클라이언트 생성 (여기서 TypeError 터지는 걸 방어)
-    try:
-        client = OpenAI(api_key=api_key)
-    except TypeError as e:
-        # httpx 버전/환경 문제로 인한 TypeError 방어
-        raise RuntimeError(
-            "OpenAI 클라이언트 생성 중 오류가 발생했습니다. "
-            "requirements.txt 에서 openai / httpx 버전을 다시 확인해 주세요.\n\n"
-            f"원래 에러 메시지: {e}"
-        )
+    # 패치된 httpx.Client를 사용하는 OpenAI 클라이언트
+    client = OpenAI(api_key=api_key)
 
     system_prompt = (
         "너는 대학 강의를 정리해 주는 조교야.\n"
@@ -115,7 +126,6 @@ def generate_lecture_notes(api_key: str, uploaded_content, content_type: str) ->
         temperature=0.3,
     )
 
-    # Python SDK에서 제공하는 편의 프로퍼티
     return response.output_text
 
 
@@ -134,17 +144,11 @@ if st.button("📚 강의노트 생성하기"):
     try:
         with st.spinner("강의노트를 생성하는 중입니다..."):
             notes = generate_lecture_notes(api_key, uploaded_content, content_type)
-    except RuntimeError as e:
-        # OpenAI 클라이언트 생성 오류 등
-        st.error(str(e))
-        st.stop()
     except Exception as e:
-        # 기타 예기치 못한 오류
-        st.error(f"강의노트 생성 중 예기치 못한 오류가 발생했습니다:\n\n{e}")
-        st.stop()
+        st.error(f"강의노트 생성 중 오류가 발생했습니다:\n\n{e}")
+    else:
+        st.subheader("✅ 생성된 강의노트")
+        st.text_area("강의노트", value=notes, height=400)
 
-    st.subheader("✅ 생성된 강의노트")
-    st.text_area("강의노트", value=notes, height=400)
-
-    st.session_state["lecture_notes"] = notes
-    st.success("강의노트가 생성되어 세션에 저장되었습니다!")
+        st.session_state["lecture_notes"] = notes
+        st.success("강의노트가 생성되어 세션에 저장되었습니다!")
