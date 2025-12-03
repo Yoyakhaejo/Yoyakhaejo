@@ -2,7 +2,7 @@ import streamlit as st
 from openai import OpenAI
 import tempfile
 import traceback
-import fitz  # PyMuPDF (PDF 텍스트 추출용)
+import fitz  # PyMuPDF
 
 # 페이지 설정
 st.set_page_config(page_title="퀴즈 생성 - 요약해줘", layout="wide")
@@ -28,9 +28,8 @@ if st.session_state["uploaded_content"] is None:
 content_type = st.session_state["content_type"]
 st.info(f"업로드된 자료 유형: **{content_type}**")
 
-
 # -------------------------------
-# 🔵 PDF 텍스트 추출 함수
+# PDF 텍스트 추출 함수
 # -------------------------------
 def extract_text_from_pdf(file_bytes):
     text = ""
@@ -39,67 +38,47 @@ def extract_text_from_pdf(file_bytes):
             text += page.get_text()
     return text
 
-
 # -------------------------------
-# 🔵 업로드 자료 텍스트 추출
+# 업로드 자료 텍스트 추출
 # -------------------------------
 def extract_text_from_uploaded():
     data = st.session_state["uploaded_content"]
     ctype = st.session_state["content_type"]
 
-    # 텍스트 입력
     if ctype == "text":
         return data
-
-    # 유튜브 링크
     if ctype == "youtube":
-        return (
-            f"유튜브 영상 URL: {data}\n"
-            "(이 영상을 분석해 핵심 내용을 기반으로 연습문제를 생성해줘.)"
-        )
-
-    # PDF 파일
+        return f"유튜브 영상 URL: {data}\n(이 영상의 핵심 내용을 기반으로 퀴즈를 생성해줘.)"
     if ctype == "pdf":
         try:
             return extract_text_from_pdf(data.getvalue())
         except Exception as e:
             return f"[PDF 추출 오류] {e}"
-
-    # 기타 파일 (ppt, pptx 등)
-    # 여기서는 임시 파일 경로 전달
     if ctype in ("ppt", "pptx", "mp4", "mov", "avi"):
         try:
             with tempfile.NamedTemporaryFile(delete=False, suffix=f".{ctype}") as tmp:
                 tmp.write(data.getbuffer())
                 tmp_path = tmp.name
-            return (
-                f"파일 경로: {tmp_path}\n"
-                "※ 현재 ppt/pptx/영상 파일은 내용 추출 기능이 없습니다. 파일 정보를 참고하여 문제를 생성해주세요."
-            )
+            return f"파일 경로: {tmp_path}\n※ ppt/pptx/영상 파일은 내용 추출 기능이 없습니다."
         except:
             return "파일 처리 오류 발생."
-
     return "알 수 없는 자료 형식입니다."
 
-
-# 변환된 자료 텍스트
 material_text = extract_text_from_uploaded()
 
-
 # -------------------------------
-# 🔵 퀴즈 옵션 UI
+# 퀴즈 옵션 UI
 # -------------------------------
 st.subheader("🎯 생성할 퀴즈 설정")
 quiz_type = st.selectbox(
     "문제 유형", ["객관식 5문항", "단답형 5문항", "서술형 3문항", "혼합형 5문항"],
 )
 difficulty = st.select_slider("난이도", ["쉬움", "보통", "어려움"], value="보통")
-
 st.markdown("---")
-
+st.write("버튼을 누르면 OpenAI Chat Completions API가 호출됩니다.")
 
 # ==========================================================
-# 🔵 퀴즈 생성
+# 퀴즈 생성
 # ==========================================================
 if st.button("🚀 퀴즈 생성하기"):
     try:
@@ -113,12 +92,11 @@ if st.button("🚀 퀴즈 생성하기"):
 {material_text}
 ------------------
 
-출력 형식 규칙(반드시 지켜라):
+출력 형식 규칙:
 - 각 문제는 "문제 1:" 이런 형식으로 시작
 - 객관식이면 보기 4개 포함
-- 마지막 줄은 반드시 "//정답: 정답내용" 형식으로 끝낼 것
-- 불필요한 설명, 사과문, 안내문 금지
-- PDF를 못 읽는다는 문구는 절대 출력하지 마라
+- 마지막 줄은 반드시 "//정답: 정답내용" 형식
+- 불필요한 안내 문구 금지
 """
 
         with st.spinner("AI가 퀴즈를 생성 중입니다..."):
@@ -131,25 +109,31 @@ if st.button("🚀 퀴즈 생성하기"):
 
             quiz_text = response.choices[0].message.content
             st.session_state["generated_quiz"] = quiz_text
-
             st.success("퀴즈 생성 완료!")
             st.markdown("### 📘 생성된 퀴즈")
 
             # -------------------------------
-            # 정답 숨김 기능
+            # 문제/정답 분리 + 정답 보기 버튼
             # -------------------------------
             lines = quiz_text.split("\n")
             buffer = []
+            question_count = 1
 
             for line in lines:
                 if "//정답:" in line:
-                    q = "\n".join(buffer).strip()
-                    a = line.replace("//정답:", "").strip()
+                    question = "\n".join(buffer).strip()
+                    answer = line.replace("//정답:", "").strip()
 
-                    with st.expander(q):
-                        st.success(f"정답: {a}")
-
+                    # 각 문제마다 고유 키를 생성해서 expander 버튼으로 사용
+                    button_key = f"show_answer_{question_count}"
+                    col1, col2 = st.columns([6, 1])
+                    with col1:
+                        st.write(question)
+                    with col2:
+                        if st.button("정답 보기", key=button_key):
+                            st.success(f"정답: {answer}")
                     buffer = []
+                    question_count += 1
                 else:
                     buffer.append(line)
 
@@ -158,9 +142,8 @@ if st.button("🚀 퀴즈 생성하기"):
         st.exception(exc)
         traceback.print_exc()
 
-
 # ==========================================================
-# 🔵 다운로드 버튼
+# 다운로드 버튼
 # ==========================================================
 if st.session_state.get("generated_quiz"):
     st.download_button(
