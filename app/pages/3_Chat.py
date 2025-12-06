@@ -101,6 +101,13 @@ st.title("AI 학습 도우미 챗봇")
 st.write("업로드한 강의자료를 기반으로 질문해보세요.")
 st.info(f"📚 현재 자료 유형: **{content_type}**")
 
+# 대화 초기화 버튼 (상단)
+if st.button("🔄 대화 초기화", use_container_width=False):
+    st.session_state.pop("messages", None)
+    st.rerun()
+
+st.divider()
+
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
@@ -162,18 +169,3 @@ if query:
 
         except Exception as e:
             st.error(f"답변 생성 중 오류 발생: {str(e)}")
-
-
-# ------------------------
-# RESET
-# ------------------------
-col1, col2, col3 = st.columns([1, 1, 2])
-
-with col1:
-    if st.button("🔄 대화 초기화", use_container_width=True):
-        st.session_state.pop("messages", None)
-        st.rerun()
-
-with col2:
-    if st.button("🏠 처음으로", use_container_width=True):
-        st.switch_page("pages/1_FileUpload.py")
