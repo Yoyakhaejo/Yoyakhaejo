@@ -28,40 +28,20 @@ if "uploaded_content" not in st.session_state or st.session_state.uploaded_conte
 
 
 # ------------------------
-# 벡터스토어 생성
+# 기존(혹은 외부) 벡터스토어 사용 (옵션 B)
 # ------------------------
+FIXED_VECTORSTORE_ID = "vs_6933e3094bc081918846e6bcaad5be21"
+
 if "vectorstore_id" not in st.session_state:
-    st.info("업로드된 파일 기반으로 벡터스토어를 생성합니다...")
-
-    with st.spinner("Vector Store 생성 중..."):
-
-        vs = client.vector_stores.create(name="Yoyakhaejo-Store")
-        st.session_state.vectorstore_id = vs.id
-
-        file_obj = st.session_state.uploaded_content
-
-        # 파일 처리 (텍스트 / PDF / 업로드 파일)
-        if isinstance(file_obj, str):
-            uploaded_file = client.files.create(
-                file=file_obj.encode(),
-                purpose="file_search"
-            )
-        else:
-            uploaded_file = client.files.create(
-                file=(file_obj.name, file_obj, "application/octet-stream"),
-                purpose="file_search"
-            )
-
-        # 벡터스토어에 파일 추가 → chunk / embedding 자동 처리
-        client.vector_stores.file_batches.upload_and_poll(
-            vector_store_id=vs.id,
-            files=[uploaded_file.id]
-        )
-
-        time.sleep(1)
-
-    st.success("Vector Store 생성 완료. 이제 질문할 수 있습니다.")
-
+    st.info("기존 벡터스토어를 사용하도록 설정합니다.")
+    # 바로 고정 ID를 사용
+    st.session_state.vectorstore_id = FIXED_VECTORSTORE_ID
+    # (선택) 존재 여부 확인 시도
+    try:
+        vs_meta = client.vector_stores.retrieve(st.session_state.vectorstore_id)
+        st.success(f"벡터스토어 사용: {vs_meta.id}")
+    except Exception as e:
+        st.warning(f"벡터스토어 조회 실패: {e} — 하지만 지정된 ID를 세션에 설정했습니다.")
 
 vectorstore_id = st.session_state.vectorstore_id
 
