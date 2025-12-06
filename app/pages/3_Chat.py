@@ -1,90 +1,121 @@
 import streamlit as st
 from openai import OpenAI
-from pprint import pprint
+import time
+
 
 # ------------------------
-# Streamlit Page Config
+# Page Configuration
 # ------------------------
 st.set_page_config(page_title="Chat - 요약해줘", layout="wide")
 
+
 # ------------------------
-# Check API Key
+# API KEY 확인
 # ------------------------
-if "user_api_key" not in st.session_state or st.session_state.user_api_key == "":
-    st.error(" 먼저 1_FileUpload 페이지에서 API Key를 입력해주세요!")
+if "user_api_key" not in st.session_state or not st.session_state.user_api_key:
+    st.error("먼저 1_FileUpload 페이지에서 API Key를 입력해주세요.")
     st.stop()
 
-# OpenAI Client
 client = OpenAI(api_key=st.session_state.user_api_key)
 
+
 # ------------------------
-# VectorStore 확인
+# 파일 확인
+# ------------------------
+if "uploaded_content" not in st.session_state or st.session_state.uploaded_content is None:
+    st.warning("학습 자료가 업로드되지 않았습니다. 1_FileUpload에서 파일을 등록하세요.")
+    st.stop()
+
+
+# ------------------------
+# 벡터스토어 생성
 # ------------------------
 if "vectorstore_id" not in st.session_state:
-    st.warning(" 아직 벡터스토어가 생성되지 않았습니다. 먼저 2_VectorStore 페이지에서 자료를 임베딩하세요.")
-    st.stop()
+    st.info("업로드된 파일 기반으로 벡터스토어를 생성합니다...")
+
+    with st.spinner("Vector Store 생성 중..."):
+
+        vs = client.vector_stores.create(name="Yoyakhaejo-Store")
+        st.session_state.vectorstore_id = vs.id
+
+        file_obj = st.session_state.uploaded_content
+
+        # 파일 처리 (텍스트 / PDF / 업로드 파일)
+        if isinstance(file_obj, str):
+            uploaded_file = client.files.create(
+                file=file_obj.encode(),
+                purpose="file_search"
+            )
+        else:
+            uploaded_file = client.files.create(
+                file=(file_obj.name, file_obj, "application/octet-stream"),
+                purpose="file_search"
+            )
+
+        # 벡터스토어에 파일 추가 → chunk / embedding 자동 처리
+        client.vector_stores.file_batches.upload_and_poll(
+            vector_store_id=vs.id,
+            files=[uploaded_file.id]
+        )
+
+        time.sleep(1)
+
+    st.success("Vector Store 생성 완료. 이제 질문할 수 있습니다.")
+
 
 vectorstore_id = st.session_state.vectorstore_id
 
+
 # ------------------------
-# 메시지 저장 공간 (대화 유지)
+# 메시지 저장 (대화 유지)
 # ------------------------
 if "messages" not in st.session_state:
-    st.session_state.messages = [{"role": "developer", "content": "You are a helpful assistant."}]
+    st.session_state.messages = []
 
-st.title(" AI 학습 도우미 챗봇")
-st.markdown("업로드한 강의자료 기반으로 질문해보세요.")
+
+st.title("AI 학습 도우미 챗봇")
+st.markdown("업로드된 강의자료 기반으로 질문해보세요.")
+
 
 # ------------------------
-# 이전 메시지 표시
+# 이전 메시지 출력
 # ------------------------
 for msg in st.session_state.messages:
-    if msg["role"] == "user":
-        st.chat_message("user").write(msg["content"])
-    elif msg["role"] == "assistant":
-        st.chat_message("assistant").write(msg["content"])
+    st.chat_message(msg["role"]).write(msg["content"])
+
 
 # ------------------------
 # 사용자 입력
 # ------------------------
-query = st.chat_input("무엇이 궁금한가요?")
+query = st.chat_input("질문을 입력하세요.")
 
 if query:
 
-    # 메시지 저장
-    st.session_state.messages.append({"role": "user", "content": query})
     st.chat_message("user").write(query)
-
-    # ------------------------
-    #  벡터스토어 기반 검색 + 응답 생성
-    # ------------------------
+    st.session_state.messages.append({"role": "user", "content": query})
 
     with st.spinner("답변 생성 중..."):
-        response = client.chat.completions.create(
+
+        # ---------- RAG: Responses + file_search ----------
+        response = client.responses.create(
             model="gpt-5-mini",
-            messages=[
-                *st.session_state.messages,
+            input=query,
+            tools=[
                 {
-                    "role": "system",
-                    "content": f"사용자는 {vectorstore_id} 벡터스토어에 저장된 학습 자료를 기반으로 학습 중입니다. 질문에 대해 가능한 한 업로드된 자료에서 근거하여 답변하세요."
+                    "type": "file_search",
+                    "vector_store_ids": [vectorstore_id]
                 }
-            ],
-            extra_body={
-                "vector_store_query": {"vector_store_ids": [vectorstore_id], "query": query}
-            }
+            ]
         )
 
-        answer = response.choices[0].message.content
+        result = response.output_text
+        st.chat_message("assistant").write(result)
+        st.session_state.messages.append({"role": "assistant", "content": result})
 
-        # 화면 출력
-        st.chat_message("assistant").write(answer)
-
-        # 저장
-        st.session_state.messages.append({"role": "assistant", "content": answer})
 
 # ------------------------
-# Reset Option
+# Reset 버튼
 # ------------------------
-if st.button(" 대화 초기화"):
-    st.session_state.messages = [{"role": "developer", "content": "You are a helpful assistant."}]
+if st.button("대화 초기화"):
+    st.session_state.messages = []
     st.experimental_rerun()
