@@ -79,17 +79,19 @@ def build_user_input(uploaded_content, content_type: str) -> str:
 
     # (2) 유튜브 링크
     if content_type == "youtube":
-        # utils.py의 함수를 사용하여 자막 추출
+        # 1. utils.py에서 만든 함수로 자막(script)을 뽑아옵니다.
         script, error_msg = get_youtube_transcript(uploaded_content)
         
+        # 2. 만약 자막을 못 가져왔다면 에러 메시지를 반환합니다.
         if error_msg:
-            return f"오류 발생: {error_msg}\n(자막이 없는 영상이거나 유효하지 않은 링크입니다.)"
+            return f"시스템 알림: 유튜브 자막을 가져오는 데 실패했습니다. ({error_msg})"
             
+        # 3. 자막을 성공적으로 가져왔다면, AI에게 자막 내용을 던져줍니다.
         return (
-            "다음은 유튜브 강의 영상의 자막 스크립트이다.\n"
-            "이 내용을 바탕으로 대학 강의노트 형식으로 정리해줘.\n"
-            "참고: 영상 내용을 직접 볼 수 없으므로 자막에 의존하여 작성함.\n\n"
-            f"--- 강의 자막 시작 ---\n{script}\n--- 강의 자막 끝 ---"
+            "다음은 사용자가 제공한 유튜브 영상의 '자막 스크립트'이다.\n"
+            "영상 화면은 볼 수 없으니, 오직 아래 텍스트 내용을 바탕으로 강의노트를 작성해라.\n"
+            "내용을 빠짐없이 분석해서 개요, 핵심 개념, 예시 등을 정리해줘.\n\n"
+            f"--- [강의 자막 시작] ---\n{script}\n--- [강의 자막 끝] ---"
         )
 
     # (3) 파일(PDF/PPT/영상 등)
