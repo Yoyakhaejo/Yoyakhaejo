@@ -3,6 +3,7 @@ from openai import OpenAI
 import tempfile
 import traceback
 import fitz  # PyMuPDF
+from utils import get_youtube_transcript
 
 # 페이지 설정
 st.set_page_config(page_title="퀴즈 생성 - 요약해줘", layout="wide")
@@ -50,7 +51,9 @@ def extract_text_from_uploaded():
     if ctype == "text":
         return data
     if ctype == "youtube":
-        return f"유튜브 영상 URL: {data}\n(이 영상의 핵심 내용을 기반으로 퀴즈를 생성해줘.)"
+        # utils.py의 함수 사용
+        script, error_msg = get_youtube_transcript(data)             
+        return f"유튜브 강의 자막 내용:\n{script}\n(위 자막 내용을 바탕으로 퀴즈를 생성해줘.)"
     if ctype == "pdf":
         try:
             return extract_text_from_pdf(data.getvalue())

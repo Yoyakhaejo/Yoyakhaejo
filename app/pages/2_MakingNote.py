@@ -1,4 +1,5 @@
 import streamlit as st
+from utils import get_youtube_transcript
 
 st.title("2. 강의노트 만들기")
 st.write("업로드한 자료를 요약해서 강의노트를 생성하는 페이지입니다.")
@@ -75,13 +76,17 @@ def build_user_input(uploaded_content, content_type: str) -> str:
 
     # (2) 유튜브 링크
     if content_type == "youtube":
+        # utils.py의 함수를 사용하여 자막 추출
+        script, error_msg = get_youtube_transcript(uploaded_content)
+        
+        if error_msg:
+            return f"오류 발생: {error_msg}\n(자막이 없는 영상이거나 유효하지 않은 링크입니다.)"
+            
         return (
-            "사용자가 아래 유튜브 링크의 강의를 들었다고 가정하자.\n"
-            "실제 영상이나 자막에 직접 접근할 수는 없지만, 일반적인 대학 강의 구성을 바탕으로\n"
-            "해당 링크의 강의가 있다고 가정하고 강의노트를 작성해줘.\n\n"
-            f"유튜브 URL: {uploaded_content}\n\n"
-            "※ 실제 영상 내용은 알 수 없으므로, 너무 구체적인 숫자/예시는 피하고 "
-            "전형적인 강의 구조에 맞춰 정리해줘."
+            "다음은 유튜브 강의 영상의 자막 스크립트이다.\n"
+            "이 내용을 바탕으로 대학 강의노트 형식으로 정리해줘.\n"
+            "참고: 영상 내용을 직접 볼 수 없으므로 자막에 의존하여 작성함.\n\n"
+            f"--- 강의 자막 시작 ---\n{script}\n--- 강의 자막 끝 ---"
         )
 
     # (3) 파일(PDF/PPT/영상 등)
