@@ -3,7 +3,7 @@ from openai import OpenAI
 import tempfile
 import traceback
 import fitz  # PyMuPDF
-from utils import get_youtube_transcript
+from app.utils import get_youtube_transcript
 
 # 페이지 설정
 st.set_page_config(page_title="퀴즈 생성 - 요약해줘", layout="wide")

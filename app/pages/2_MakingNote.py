@@ -1,5 +1,5 @@
 import streamlit as st
-from utils import get_youtube_transcript
+from app.utils import get_youtube_transcript
 
 st.title("2. 강의노트 만들기")
 st.write("업로드한 자료를 요약해서 강의노트를 생성하는 페이지입니다.")
