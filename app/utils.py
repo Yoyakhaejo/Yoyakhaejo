@@ -1,70 +1,54 @@
 # utils.py
-from youtube_transcript_api import YouTubeTranscriptApi, NoTranscriptFound, TranscriptsDisabled
+from youtube_transcript_api import YouTubeTranscriptApi
+from youtube_transcript_api.formatters import TextFormatter
 from urllib.parse import urlparse, parse_qs
 
-def extract_youtube_video_id(url: str):
+def get_youtube_transcript(url):
     """
-    다양한 형태의 유튜브 URL에서 video_id 추출
+    유튜브 URL을 입력받아 자막 텍스트를 반환.
+    성공: (text, None)
+    실패: (None, error_msg)
     """
-    parsed = urlparse(url)
-
-    # https://youtu.be/VIDEOID
-    if parsed.hostname == "youtu.be":
-        return parsed.path.lstrip("/")
-
-    # https://www.youtube.com/watch?v=VIDEO_ID
-    if parsed.hostname and "youtube.com" in parsed.hostname:
-        qs = parse_qs(parsed.query)
-        return qs.get("v", [None])[0]
-
-    return None
-
-
-def get_youtube_transcript(url: str):
-    """
-    list_transcripts()가 없는 구버전 youtube-transcript-api에서도 안전하게 작동하도록 작성한 함수.
-    언어 우선순위: 한국어 → 영어 → 자동 생성
-    """
-
-    video_id = extract_youtube_video_id(url)
-    if not video_id:
-        return None, "유효한 유튜브 URL이 아닙니다."
-
-    # 우선순위: 한국어, 영어
-    lang_priority = [
-        ['ko'],      # 한국어
-        ['ko', 'ko-KR'],
-        ['en'],      # 영어
-        ['en', 'en-US'],
-    ]
-
-    # 1) 먼저 언어 기반으로 시도
-    for langs in lang_priority:
-        try:
-            transcript = YouTubeTranscriptApi.get_transcript(video_id, languages=langs)
-            text = " ".join([item["text"] for item in transcript])
-            return text, None
-        except NoTranscriptFound:
-            continue
-        except TranscriptsDisabled:
-            return None, "해당 영상은 자막이 비활성화되어 있습니다."
-        except Exception:
-            continue
-
-    # 2) 자동 생성(auto-generated) 자막 시도
     try:
-        transcript_list = YouTubeTranscriptApi.list_transcripts(video_id)
-        # auto-generated 중 ko, en 우선
-        for lang in ["ko", "en"]:
+        # --- 1. 영상 ID 파싱 ---
+        parsed_url = urlparse(url)
+        if parsed_url.hostname == "youtu.be":
+            video_id = parsed_url.path[1:]
+        else:
+            video_id = parse_qs(parsed_url.query).get("v", [None])[0]
+
+        if not video_id:
+            return None, "유효하지 않은 YouTube URL입니다."
+
+        # --- 2. 자막 목록 확인 ---
+        try:
+            transcripts = YouTubeTranscriptApi.list_transcripts(video_id)
+        except Exception:
+            return None, "해당 영상에서 이용 가능한 자막이 없습니다."
+
+        # --- 3. 언어 우선순위: 한국어 → 영어 → 자동생성(en) ---
+        preferred_langs = ["ko", "ko-KR", "en", "en-US"]
+
+        transcript = None
+        for lang in preferred_langs:
             try:
-                generated = transcript_list.find_generated_transcript([lang])
-                data = generated.fetch()
-                text = " ".join([item["text"] for item in data])
-                return text, None
+                transcript = transcripts.find_transcript([lang])
+                break
             except:
                 continue
-    except:
-        pass  # list_transcripts가 없는 환경에서는 여기로 옴 → 무시
 
-    # 3) 어떤 방식도 실패
-    return None, "해당 영상에서 이용 가능한 자막을 찾을 수 없습니다."
+        # 자동생성(en) 시도
+        if transcript is None:
+            try:
+                transcript = transcripts.find_generated_transcript(["en"])
+            except:
+                return None, "해당 영상은 자막이 없거나 자동생성 자막도 지원되지 않습니다."
+
+        # --- 4. 자막 추출 ---
+        script_entries = transcript.fetch()
+        text = " ".join([entry["text"] for entry in script_entries])
+
+        return text, None
+
+    except Exception as e:
+        return None, f"예상치 못한 오류: {e}"
