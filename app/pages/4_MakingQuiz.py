@@ -5,6 +5,7 @@ import traceback
 import fitz  # PyMuPDF
 import sys
 import os
+
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from utils import get_youtube_transcript
 
@@ -53,21 +54,23 @@ def extract_text_from_uploaded():
 
     if ctype == "text":
         return data
+
     if ctype == "youtube":
-        # 1. utils.py 함수로 자막 추출
         script, error_msg = get_youtube_transcript(data)
         if error_msg:
-            return f"[오류] 자막을 가져올 수 없습니다. ({error_msg})"
+            return f"[오류] 자막을 가져올 수 없습니다: {error_msg}"
         return (
             f"다음은 유튜브 영상의 자막 스크립트입니다:\n"
             f"--- 자막 시작 ---\n{script}\n--- 자막 끝 ---\n"
             f"(위 자막 내용을 바탕으로 퀴즈를 출제해줘.)"
         )
+
     if ctype == "pdf":
         try:
             return extract_text_from_pdf(data.getvalue())
         except Exception as e:
             return f"[PDF 추출 오류] {e}"
+
     if ctype in ("ppt", "pptx", "mp4", "mov", "avi"):
         try:
             with tempfile.NamedTemporaryFile(delete=False, suffix=f".{ctype}") as tmp:
@@ -76,6 +79,7 @@ def extract_text_from_uploaded():
             return f"파일 경로: {tmp_path}\n※ ppt/pptx/영상 파일은 내용 추출 기능이 없습니다."
         except:
             return "파일 처리 오류 발생."
+
     return "알 수 없는 자료 형식입니다."
 
 
@@ -101,7 +105,6 @@ if st.button("🚀 퀴즈 생성하기"):
     try:
         client = OpenAI(api_key=st.session_state["user_api_key"])
 
-        # 문제 유형별 포맷 지시
         prompt = f"""
 아래 강의자료를 바탕으로 {quiz_type} 퀴즈를 생성해줘.
 난이도: {difficulty}
@@ -116,7 +119,7 @@ if st.button("🚀 퀴즈 생성하기"):
    - 단답형: 문제만 작성 후 반드시 별도 줄에 "//정답: 정답" 작성
    - 서술형: 문제 작성 후 별도 줄에 "//정답: 정답 내용"
    - 혼합형: 유형 섞어서 5문항
-2. 문제 번호 포함 금지: "문제 1:", "문제 2:" 등
+2. 문제 번호 포함 금지
 3. 무조건 문제와 정답은 항상 별도 줄로 구분
 4. 불필요한 안내 문구 금지
 """
@@ -131,12 +134,11 @@ if st.button("🚀 퀴즈 생성하기"):
 
             quiz_text = response.choices[0].message.content
             st.session_state["generated_quiz"] = quiz_text
+
             st.success("퀴즈 생성 완료!")
             st.markdown("### 📘 생성된 퀴즈")
 
-            # -------------------------------
-            # 문제/정답 분리 + 정답 클릭 표시(expander)
-            # -------------------------------
+            # 문제/정답 분리
             lines = quiz_text.split("\n")
             buffer = []
             question_count = 1
@@ -146,11 +148,9 @@ if st.button("🚀 퀴즈 생성하기"):
                     question = "\n".join(buffer).strip()
                     answer = line.replace("//정답:", "").strip()
 
-                    # 문제는 항상 화면에 표시
                     st.write(f"**문제 {question_count}:**")
                     st.write(question)
 
-                    # 정답만 expander로 숨기기
                     with st.expander("정답 보기", expanded=False):
                         st.success(answer)
 
